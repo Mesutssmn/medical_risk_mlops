@@ -134,6 +134,38 @@ def train():
         if _save_shap_summary(model, X_test, shap_path):
             mlflow.log_artifact(shap_path)
 
+        # ── Feature Importance ──
+        try:
+            from catboost import Pool
+            train_pool = Pool(X_train, y_train, cat_features=categorical_features)
+            feature_importance = model.get_feature_importance(train_pool)
+            feature_names = X_train.columns
+            
+            logger.info("Feature importance len: %d, Feature names len: %d", len(feature_importance), len(feature_names))
+
+            fi_df = pd.DataFrame({"feature": feature_names, "importance": feature_importance})
+            fi_df = fi_df.sort_values(by="importance", ascending=False)
+            
+            # Save as CSV
+            fi_csv_path = os.path.join(ARTIFACTS_DIR, "feature_importance.csv")
+            fi_df.to_csv(fi_csv_path, index=False)
+            mlflow.log_artifact(fi_csv_path)
+
+            # Save as Plot
+            fig, ax = plt.subplots(figsize=(10, 8))
+            ax.barh(fi_df["feature"][:20], fi_df["importance"][:20], color="skyblue")
+            ax.set_xlabel("Importance")
+            ax.set_title("Top 20 Feature Importance")
+            ax.invert_yaxis()
+            plt.tight_layout()
+            fi_plot_path = os.path.join(ARTIFACTS_DIR, "feature_importance.png")
+            plt.savefig(fi_plot_path)
+            plt.close()
+            mlflow.log_artifact(fi_plot_path)
+            logger.info("Feature importance saved to %s", fi_csv_path)
+        except Exception as e:
+            logger.error("Failed to calculate feature importance: %s", e)
+
         # ── Register model ──
         mlflow.catboost.log_model(
             model,

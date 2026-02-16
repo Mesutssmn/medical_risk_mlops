@@ -31,17 +31,19 @@ NUMERIC_FEATURES = [
 
 DROP_COLUMNS = ["id"]
 
-# ── CatBoost Hyperparameters ──────────────────────────
+# ── CatBoost Hyperparameters (Improved) ────────────────
 CATBOOST_PARAMS = {
-    "iterations": 500,
-    "depth": 6,
-    "learning_rate": 0.05,
+    "iterations": 1000,
+    "depth": 8,
+    "learning_rate": 0.03,
     "loss_function": "Logloss",
     "eval_metric": "AUC",
     "random_seed": RANDOM_STATE,
     "class_weights": [1, 20],
     "verbose": 100,
-    "early_stopping_rounds": 50,
+    "early_stopping_rounds": 100,
+    "l2_leaf_reg": 5,
+    "border_count": 128,
 }
 
 # ── MLflow ─────────────────────────────────────────────

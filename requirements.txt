@@ -9,6 +9,9 @@ catboost
 # Experiment Tracking
 mlflow
 
+# Optimization
+optuna
+
 # API
 fastapi
 uvicorn[standard]
@@ -26,3 +29,7 @@ streamlit
 
 # Environment
 python-dotenv
+
+# Testing
+pytest
+httpx

@@ -26,3 +26,14 @@ artifacts/
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs and Temporary files
+*.log
+*.txt
+error_trace.txt
+test_model_output.txt
+output.txt
+debug.log
+
+# Testing
+.pytest_cache/

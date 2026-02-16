@@ -10,6 +10,8 @@ matplotlib.use("Agg")  # non-interactive backend
 import matplotlib.pyplot as plt
 import numpy as np
 from catboost import CatBoostClassifier
+# Evidently imports are handled inside train() to avoid heavy import if not needed
+
 
 from src.config import (
     RAW_DATA_PATH,
@@ -93,6 +95,22 @@ def train():
 
         # ── Log parameters ──
         mlflow.log_params(CATBOOST_PARAMS)
+
+        # ── Data Quality Monitoring (Evidently) ──
+        try:
+            from evidently.report import Report
+            from evidently.metric_preset import DataQualityPreset
+            
+            dq_report = Report(metrics=[DataQualityPreset()])
+            # Use a subset for speed if needed, but here we use full train/test
+            dq_report.run(reference_data=X_train, current_data=X_test)
+            
+            dq_path = os.path.join(ARTIFACTS_DIR, "data_quality_report.html")
+            dq_report.save_html(dq_path)
+            mlflow.log_artifact(dq_path)
+            logger.info("Evidently Data Quality report saved to %s", dq_path)
+        except Exception as e:
+            logger.warning("Evidently report generation failed: %s", e)
 
         # ── Train ──
         model.fit(

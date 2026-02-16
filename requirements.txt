@@ -16,6 +16,7 @@ optuna
 fastapi
 uvicorn[standard]
 pydantic
+prometheus-fastapi-instrumentator
 
 # Explainability
 shap

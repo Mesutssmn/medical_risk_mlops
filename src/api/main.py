@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.api.schema import StrokeInput, StrokeOutput
 from src.config import MLFLOW_TRACKING_URI, MODEL_NAME
@@ -78,6 +80,18 @@ app = FastAPI(
     description="CatBoost-based binary classification for stroke risk — with threshold tuning and SHAP",
     version="2.0.0",
     lifespan=lifespan,
+)
+
+# ── Prometheus Instrumentation ──
+Instrumentator().instrument(app).expose(app)
+
+# ── CORS ──
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

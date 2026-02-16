@@ -1,244 +1,245 @@
 # 🧠 Medical Risk MLOps — Stroke Risk Prediction
 
-CatBoost + MLflow + FastAPI + Streamlit ile uçtan uca **inme (stroke) riski tahmini** sistemi.
+An end-to-end **stroke risk prediction** system built with CatBoost + MLflow + FastAPI + Streamlit.
 
 ---
 
-## 📋 İçindekiler
+## 📋 Table of Contents
 
-- [Proje Yapısı](#-proje-yapısı)
-- [Ne Yaptık ve Neden?](#-ne-yaptık-ve-neden)
-- [Kurulum](#-kurulum)
-- [Çalıştırma Adımları](#-çalıştırma-adımları)
-- [Docker ile Çalıştırma](#-docker-ile-çalıştırma)
-- [Streamlit Cloud'a Deploy](#-streamlit-clouda-deploy)
-- [API Kullanımı](#-api-kullanımı)
-- [Teknolojiler](#-teknolojiler)
+- [Project Structure](#-project-structure)
+- [Architecture & Design Decisions](#-architecture--design-decisions)
+- [Installation](#-installation)
+- [Getting Started](#-getting-started)
+- [Running with Docker](#-running-with-docker)
+- [Deploy to Streamlit Cloud](#-deploy-to-streamlit-cloud)
+- [API Usage](#-api-usage)
+- [Tech Stack](#-tech-stack)
+- [Model Performance](#-model-performance)
 
 ---
 
-## 🗂 Proje Yapısı
+## 🗂 Project Structure
 
 ```
 medical-risk-mlops/
 │
 ├── data/
-│   └── raw/stroke_data.csv          # Kaggle Stroke Prediction veri seti (5110 kayıt)
+│   └── raw/stroke_data.csv          # Kaggle Stroke Prediction dataset (5,110 records)
 │
 ├── models/
-│   ├── model.cbm                    # Standalone CatBoost model (Docker/Cloud için)
-│   └── metadata.json                # Threshold ve model bilgileri
+│   ├── model.cbm                    # Standalone CatBoost model (for Docker/Cloud)
+│   └── metadata.json                # Optimal threshold & model metadata
 │
 ├── src/
-│   ├── config.py                    # Tüm ayarlar: yollar, hiperparametreler, feature listesi
+│   ├── config.py                    # Central configuration: paths, hyperparams, features
 │   │
 │   ├── data/
-│   │   ├── load_data.py             # CSV okuma
-│   │   ├── validate.py              # Veri doğrulama (eksik değer, dtype kontrol)
-│   │   └── preprocess.py            # Temizleme, BMI doldurma, train/test split
+│   │   ├── load_data.py             # CSV loader
+│   │   ├── validate.py              # Data validation (missing values, dtype checks)
+│   │   └── preprocess.py            # Cleaning, BMI imputation, train/test split
 │   │
 │   ├── models/
-│   │   ├── train.py                 # Model eğitimi + MLflow loglama + SHAP
-│   │   ├── evaluate.py              # Metrikler + threshold tuning
-│   │   └── predict.py               # MLflow'dan model yükleme + tahmin
+│   │   ├── train.py                 # Model training + MLflow logging + SHAP
+│   │   ├── evaluate.py              # Metrics + threshold tuning
+│   │   └── predict.py               # Model loading + inference
 │   │
 │   └── api/
-│       ├── schema.py                # Pydantic giriş/çıkış şemaları
-│       └── main.py                  # FastAPI endpoint'leri (/predict, /explain, /health)
+│       ├── schema.py                # Pydantic input/output schemas
+│       └── main.py                  # FastAPI endpoints (/predict, /explain, /health)
 │
-├── .streamlit/config.toml           # Streamlit tema ve server ayarları
-├── streamlit_app.py                 # 🖥 Streamlit dashboard (görsel arayüz)
+├── .streamlit/config.toml           # Streamlit theme & server settings
+├── streamlit_app.py                 # 🖥 Streamlit dashboard (visual interface)
 ├── Dockerfile                       # Multi-stage Docker container
-├── docker-compose.yml               # 3 servis: API + Streamlit + MLflow UI
-├── requirements.txt                 # Python bağımlılıkları
-└── README.md                        # Bu dosya
+├── docker-compose.yml               # 3 services: API + Streamlit + MLflow UI
+├── requirements.txt                 # Python dependencies
+└── README.md                        # This file
 ```
 
 ---
 
-## 🎯 Ne Yaptık ve Neden?
+## 🎯 Architecture & Design Decisions
 
-### 1. `config.py` — Merkezi Ayar Dosyası
+### 1. `config.py` — Central Configuration
 
-**Neden:** Hiperparametreler, dosya yolları ve feature isimleri tek yerde olsun ki her dosyada tekrar yazılmasın. Bir şeyi değiştirmek istersen sadece burayı değiştirirsin.
+**Why:** All hyperparameters, file paths, and feature names are stored in one place. Need to change something? Edit a single file.
 
-### 2. `load_data.py` → `validate.py` → `preprocess.py` — Veri Hattı
+### 2. `load_data.py` → `validate.py` → `preprocess.py` — Data Pipeline
 
-**Neden:** Veri yükleme → doğrulama → temizleme adımlarını ayrı modüllere böldük. Her biri bağımsız olarak test edilebilir ve değiştirilebilir.
+**Why:** Separating data loading → validation → cleaning into distinct modules makes each independently testable and replaceable.
 
-| Adım            | Ne Yapar                                                                                         |
-| --------------- | ------------------------------------------------------------------------------------------------ |
-| `load_data.py`  | CSV dosyasını okur                                                                               |
-| `validate.py`   | Eksik değerleri, target dağılımını ve dtype'ları kontrol eder                                    |
-| `preprocess.py` | `id` sütununu düşürür, BMI'deki null'ları medyan ile doldurur, stratified train/test split yapar |
+| Step            | What It Does                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------- |
+| `load_data.py`  | Reads the raw CSV file                                                                       |
+| `validate.py`   | Checks for missing values, target distribution, and dtype consistency                        |
+| `preprocess.py` | Drops the `id` column, imputes missing BMI with median, performs stratified train/test split |
 
-### 3. `train.py` — Model Eğitimi + MLflow
+### 3. `train.py` — Model Training + MLflow
 
-**Neden:** CatBoost modeli eğitir ve her şeyi MLflow'a kaydeder → tekrarlanabilirlik sağlar.
+**Why:** Trains a CatBoost model and records everything to MLflow for reproducibility.
 
-**Ne loglar:**
+**What gets logged:**
 
-- Hiperparametreler (iterations, depth, learning_rate, class_weights)
-- Metrikler: ROC-AUC, Precision, Recall, F1, optimal threshold
-- Artifactler: confusion matrix (PNG + JSON), classification report (TXT), SHAP özet grafiği (PNG)
-- Modelin kendisi → MLflow Model Registry'ye kaydeder
-- Standalone export → `models/model.cbm` + `models/metadata.json` (Docker/Cloud için)
+- Hyperparameters (iterations, depth, learning_rate, class_weights)
+- Metrics: ROC-AUC, Precision, Recall, F1, optimal threshold
+- Artifacts: confusion matrix (PNG + JSON), classification report (TXT), SHAP summary plot (PNG)
+- The model itself → registered in MLflow Model Registry
+- Standalone export → `models/model.cbm` + `models/metadata.json` (for Docker/Cloud)
 
 ### 4. `evaluate.py` — Threshold Tuning
 
-**Neden:** Veri setinde **%95 no-stroke** vs **%5 stroke** var (aşırı dengesiz). Varsayılan 0.5 threshold çok fazla stroke vakasını kaçırır. **F2-score** ile recall'u optimize eden optimal threshold buluruz (≈0.69).
+**Why:** The dataset is highly imbalanced (**95% no-stroke** vs **5% stroke**). The default 0.5 threshold misses too many stroke cases. We use **F2-score** to find the optimal threshold (≈0.69), which weighs recall more heavily.
 
-### 5. `predict.py` — Model Yükleme ve Tahmin
+### 5. `predict.py` — Model Loading & Inference
 
-**Neden:** MLflow Registry'den modeli yükler ve tek bir hasta verisi için tahmin yapar. API ve Streamlit bu modülü kullanır.
+**Why:** Loads the model from the MLflow Registry and runs predictions for a single patient. Used by both the API and Streamlit.
 
-### 6. `schema.py` — Pydantic Şemaları
+### 6. `schema.py` — Pydantic Schemas
 
-**Neden:** API'ye gelen verilerin doğruluğunu garanti eder. Yanlış tip veya eksik alan gönderirsen hata mesajı döner.
+**Why:** Guarantees correct input data types for the API. Invalid types or missing fields return clear error messages.
 
 ### 7. `api/main.py` — FastAPI REST API
 
-**Neden:** Modeli bir HTTP servisi olarak sunar. Herhangi bir uygulama (web, mobil, başka servis) bu API'yi çağırarak tahmin alabilir.
+**Why:** Serves the model as an HTTP service. Any application (web, mobile, microservice) can call this API for predictions.
 
-| Endpoint   | Method | Açıklama                             |
-| ---------- | ------ | ------------------------------------ |
-| `/health`  | GET    | Sistem durumu kontrolü               |
-| `/predict` | POST   | Tek hasta için stroke risk tahmini   |
-| `/explain` | POST   | SHAP değerleri ile tahmin açıklaması |
+| Endpoint   | Method | Description                                 |
+| ---------- | ------ | ------------------------------------------- |
+| `/health`  | GET    | Health check & system status                |
+| `/predict` | POST   | Stroke risk prediction for a single patient |
+| `/explain` | POST   | SHAP-based prediction explanation           |
 
-### 8. `streamlit_app.py` — Dashboard Arayüzü
+### 8. `streamlit_app.py` — Dashboard Interface
 
-**Neden:** Teknik olmayan kullanıcılar için görsel arayüz. Hasta bilgilerini doldur → tahmin al → SHAP grafiğiyle hangi faktörlerin riski artırdığını gör.
+**Why:** A visual interface for non-technical users. Fill in patient info → get predictions → see which factors drive the risk via SHAP visualization.
 
 ### 9. Dual-Mode Model Loading
 
-**Neden:** Eğitim sonrası model iki yere kaydedilir:
+**Why:** After training, the model is saved in two locations:
 
-1. **MLflow Registry** → Local development için (deney takibi ile birlikte)
-2. **`models/model.cbm`** → Docker ve Cloud deploy için (MLflow bağımlılığı yok)
+1. **MLflow Registry** → for local development (alongside experiment tracking)
+2. **`models/model.cbm`** → for Docker and Cloud deployment (no MLflow dependency)
 
-API ve Streamlit önce `.cbm` dosyasını arar → bulamazsa MLflow'a düşer.
+Both the API and Streamlit check for the `.cbm` file first → fall back to MLflow if not found.
 
-### 10. Class Imbalance Çözümü
+### 10. Class Imbalance Handling
 
-**Neden:** 4861 no-stroke vs 249 stroke. `class_weights=[1, 20]` ile CatBoost'a stroke vakalarını 20x daha önemli olarak öğretiyoruz.
+**Why:** 4,861 no-stroke vs 249 stroke samples. We use `class_weights=[1, 20]` to tell CatBoost to treat stroke cases as 20x more important during training.
 
 ---
 
-## ⚙️ Kurulum
+## ⚙️ Installation
 
 ```bash
-# 1. Sanal ortam oluştur
+# 1. Create a virtual environment
 python -m venv .venv
 
-# 2. Sanal ortamı aktifle
+# 2. Activate it
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # Linux/Mac
 
-# 3. Bağımlılıkları yükle
+# 3. Install dependencies
 pip install -r requirements.txt
 ```
 
 ---
 
-## 🚀 Çalıştırma Adımları
+## 🚀 Getting Started
 
-### Adım 1 — Model Eğitimi
+### Step 1 — Train the Model
 
 ```bash
 python -m src.models.train
 ```
 
-**Ne olur:**
+**What happens:**
 
-- Veri yüklenir ve işlenir
-- CatBoost modeli eğitilir (500 iterasyon)
-- Threshold optimize edilir (recall için)
-- SHAP grafiği oluşturulur
-- Her şey MLflow'a loglanır
-- Model MLflow Registry'ye kaydedilir
-- `models/model.cbm` ve `models/metadata.json` oluşturulur
+- Data is loaded and preprocessed
+- CatBoost model is trained (500 iterations)
+- Threshold is optimized for recall
+- SHAP summary plot is generated
+- Everything is logged to MLflow
+- Model is registered in MLflow Registry
+- `models/model.cbm` and `models/metadata.json` are exported
 
-**Çıktı:** `ROC-AUC: ~0.85 | Recall: ~0.74 | Threshold: ~0.69`
+**Output:** `ROC-AUC: ~0.85 | Recall: ~0.74 | Threshold: ~0.69`
 
-### Adım 2a — Streamlit Dashboard (Önerilen)
+### Step 2a — Streamlit Dashboard (Recommended)
 
 ```bash
 streamlit run streamlit_app.py --server.port 8890
 ```
 
-Tarayıcıda **http://localhost:8890** adresini aç.
+Open **http://localhost:8890** in your browser.
 
-> ⚠️ **Windows Hyper-V Notu:** Port 8501 (varsayılan) Hyper-V tarafından bloke olabilir. `--server.port 8890` ekleyerek farklı bir port kullan.
+> ⚠️ **Windows Hyper-V Note:** Port 8501 (default) may be blocked by Hyper-V. Use `--server.port 8890` to run on a different port.
 
-### Adım 2b — FastAPI (Alternatif)
+### Step 2b — FastAPI API (Alternative)
 
 ```bash
 uvicorn src.api.main:app --port 8000
 ```
 
-API: **http://localhost:8000/docs** (Swagger UI)
+API docs: **http://localhost:8000/docs** (Swagger UI)
 
-### Adım 3 — MLflow UI (Opsiyonel)
+### Step 3 — MLflow UI (Optional)
 
 ```bash
 mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
 
-**http://localhost:5000** → Tüm deneyleri, metrikleri ve artifactleri görsel olarak incele.
+**http://localhost:5000** → Visually explore all experiments, metrics, and artifacts.
 
 ---
 
-## 🐳 Docker ile Çalıştırma
+## 🐳 Running with Docker
 
-### Tek Servis
+### Single Service
 
 ```bash
-# Image oluştur
+# Build the image
 docker build -t stroke-risk-mlops .
 
-# FastAPI çalıştır
+# Run FastAPI
 docker run -p 8000:8000 stroke-risk-mlops uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
-# Streamlit çalıştır
+# Run Streamlit
 docker run -p 8501:8501 stroke-risk-mlops streamlit run streamlit_app.py --server.port 8501 --server.address 0.0.0.0
 ```
 
-### Docker Compose (3 Servis Birden)
+### Docker Compose (All 3 Services)
 
 ```bash
 docker-compose up -d
 ```
 
-| Servis        | URL                   | Açıklama              |
-| ------------- | --------------------- | --------------------- |
-| **API**       | http://localhost:8000 | FastAPI REST endpoint |
-| **Streamlit** | http://localhost:8501 | Dashboard arayüzü     |
-| **MLflow**    | http://localhost:5000 | Deney takip arayüzü   |
+| Service       | URL                   | Description            |
+| ------------- | --------------------- | ---------------------- |
+| **API**       | http://localhost:8000 | FastAPI REST endpoint  |
+| **Streamlit** | http://localhost:8501 | Dashboard interface    |
+| **MLflow**    | http://localhost:5000 | Experiment tracking UI |
 
 ```bash
-# Durdur
+# Stop
 docker-compose down
 ```
 
-> **Not:** Docker container'ları `models/model.cbm` dosyasını kullanır (MLflow registry'ye bağımlı değildir). Bu sayede Windows'ta eğitilen model Linux container'da sorunsuz çalışır.
+> **Note:** Docker containers use the standalone `models/model.cbm` file (no MLflow registry dependency). This means a model trained on Windows runs seamlessly inside a Linux container.
 
 ---
 
-## ☁️ Streamlit Cloud'a Deploy
+## ☁️ Deploy to Streamlit Cloud
 
-1. Projeyi **GitHub'a push** et
-2. [share.streamlit.io](https://share.streamlit.io) adresine git
-3. GitHub reposunu seç → `streamlit_app.py` dosyasını seç
-4. **Deploy** tıkla
+1. Push the project to **GitHub**
+2. Go to [share.streamlit.io](https://share.streamlit.io)
+3. Select your GitHub repo → choose `streamlit_app.py`
+4. Click **Deploy**
 
-> **Önemli:** `models/model.cbm` ve `models/metadata.json` dosyalarının repo'da olduğundan emin ol (`.gitignore`'da olmamalı).
+> **Important:** Make sure `models/model.cbm` and `models/metadata.json` are in the repo (not in `.gitignore`).
 
 ---
 
-## 📡 API Kullanımı
+## 📡 API Usage
 
-### Tahmin İsteği
+### Prediction Request
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -257,7 +258,7 @@ curl -X POST http://localhost:8000/predict \
   }'
 ```
 
-### Yanıt
+### Response
 
 ```json
 {
@@ -268,24 +269,24 @@ curl -X POST http://localhost:8000/predict \
 
 ---
 
-## 🛠 Teknolojiler
+## 🛠 Tech Stack
 
-| Teknoloji        | Kullanım Amacı                                          |
-| ---------------- | ------------------------------------------------------- |
-| **CatBoost**     | Kategorik veri desteği olan gradient boosting modeli    |
-| **MLflow**       | Deney takibi, model kayıt, artifact saklama             |
-| **FastAPI**      | REST API (yüksek performanslı, otomatik dokümantasyon)  |
-| **Streamlit**    | İnteraktif dashboard arayüzü                            |
-| **SHAP**         | Model açıklanabilirliği (hangi feature ne kadar etkili) |
-| **Pydantic**     | Veri doğrulama (API giriş/çıkış)                        |
-| **Docker**       | Container ile taşınabilir dağıtım                       |
-| **scikit-learn** | Train/test split, metrik hesaplama                      |
+| Technology       | Purpose                                                   |
+| ---------------- | --------------------------------------------------------- |
+| **CatBoost**     | Gradient boosting with native categorical feature support |
+| **MLflow**       | Experiment tracking, model registry, artifact storage     |
+| **FastAPI**      | High-performance REST API with auto-generated docs        |
+| **Streamlit**    | Interactive dashboard interface                           |
+| **SHAP**         | Model explainability (which features drive predictions)   |
+| **Pydantic**     | Input/output data validation for the API                  |
+| **Docker**       | Portable containerized deployment                         |
+| **scikit-learn** | Train/test split, metric computation                      |
 
 ---
 
-## 📊 Model Performansı
+## 📊 Model Performance
 
-| Metrik        | Değer      |
+| Metric        | Value      |
 | ------------- | ---------- |
 | ROC-AUC       | **0.8485** |
 | Recall        | **0.7400** |

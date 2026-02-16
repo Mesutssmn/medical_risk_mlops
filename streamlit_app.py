@@ -162,6 +162,21 @@ if predict_btn:
                 <p style="font-size:1.1rem; margin:0.5rem 0 0 0;">
                     Stroke probability: <strong>{probability:.1%}</strong>
                 </p>
+                <p style="font-size:0.9rem; color:#4b5563; margin-top:0.5rem;">
+                    Exceeds threshold of {optimal_threshold:.1%}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        elif probability >= 0.15: # Moderate Risk threshold (manual safety net)
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%); border-left: 5px solid #f97316; padding: 1.5rem; border-radius: 0.75rem; margin: 1rem 0;">
+                <h2 style="color:#c2410c; margin:0;">⚠️ MODERATE RISK</h2>
+                <p style="font-size:1.1rem; margin:0.5rem 0 0 0;">
+                    Stroke probability: <strong>{probability:.1%}</strong>
+                </p>
+                <p style="font-size:0.9rem; color:#4b5563; margin-top:0.5rem;">
+                    Below threshold ({optimal_threshold:.1%}) but warrants attention.
+                </p>
             </div>
             """, unsafe_allow_html=True)
         else:

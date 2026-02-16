@@ -211,7 +211,7 @@ if predict_btn:
 
     detail_df = pd.DataFrame({
         "Feature": features,
-        "Value": [str(input_data.get(f, "")) for f in features],
+        "Value": [str(df.iloc[0].get(f, "")) for f in features],
         "SHAP Impact": [round(v, 4) for v in values],
         "Direction": ["↑ Increases Risk" if v > 0 else "↓ Decreases Risk" for v in values],
     })

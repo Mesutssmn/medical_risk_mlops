@@ -162,6 +162,13 @@ if predict_btn:
         if cols_to_scale:
             df[cols_to_scale] = scaler.transform(df[cols_to_scale])
     
+    # ── Scaling ──
+    if scaler:
+        from src.config import SCALING_FEATURES
+        cols_to_scale = [c for c in SCALING_FEATURES if c in df.columns]
+        if cols_to_scale:
+            df[cols_to_scale] = scaler.transform(df[cols_to_scale])
+    
     probability = float(model.predict_proba(df)[:, 1][0])
     prediction = 1 if probability >= optimal_threshold else 0
 

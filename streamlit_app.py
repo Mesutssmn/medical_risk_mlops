@@ -113,7 +113,7 @@ st.markdown("""
 st.markdown('<p class="main-header">🧠 Stroke Risk Prediction</p>', unsafe_allow_html=True)
 st.markdown('<p class="subtitle">CatBoost · MLflow · SHAP Explainability</p>', unsafe_allow_html=True)
 
-model, explainer, optimal_threshold = load_model()
+model, explainer, optimal_threshold, scaler = load_model()
 
 # ── Sidebar — Patient Information ─────────────────────────────
 with st.sidebar:

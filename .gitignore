@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# MLflow local data
+mlruns/
+mlflow.db
+
+# CatBoost training cache
+catboost_info/
+
+# Environment
+.env
+
+# Artifacts (generated during training)
+artifacts/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

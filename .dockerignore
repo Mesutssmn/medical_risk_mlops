@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.github/
+notebooks/
+tests/
+airflow/
+catboost_info/
+artifacts/
+*.ipynb
+.env
+.gitignore
+README.md
+check.ipynb

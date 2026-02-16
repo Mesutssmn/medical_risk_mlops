@@ -84,8 +84,17 @@ def train():
     mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     # ── Data ──
+    # ── Data ──
     df = load_data(RAW_DATA_PATH)
-    X_train, X_test, y_train, y_test, categorical_features = preprocess(df)
+    X_train, X_test, y_train, y_test, categorical_features, scaler = preprocess(df)
+    
+    # Save Scaler independently of MLflow first (to ensure artifact exists for registration)
+    import joblib
+    from src.config import SCALER_PATH
+    os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
+    if scaler:
+        joblib.dump(scaler, SCALER_PATH)
+        logger.info("Scaler saved to %s", SCALER_PATH)
 
     # ── Model ──
     model = CatBoostClassifier(**CATBOOST_PARAMS)
@@ -198,6 +207,14 @@ def train():
         model.save_model(MODEL_FILE_PATH)
         with open(MODEL_METADATA_PATH, "w") as f:
             json.dump({"threshold": metrics["threshold"]}, f)
+        
+        # We already saved scaler above, now just confirm or log to MLflow if needed
+        # But we need it in the SAME folder as model.cbm for easy download/deployment
+        # SCALER_PATH is already in MODEL_DIR.
+        
+        if scaler:
+            mlflow.log_artifact(SCALER_PATH, artifact_path="model")
+            
         logger.info("Standalone model exported to %s", MODEL_FILE_PATH)
 
         logger.info(

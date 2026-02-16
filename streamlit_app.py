@@ -41,8 +41,17 @@ def load_model():
             threshold = 0.5
         model = mlflow.catboost.load_model(f"models:/{MODEL_NAME}/None")
 
+    # ── Load Scaler ──
+    import joblib
+    scaler = None
+    # We expect scaler in same dir as model logic or from config path. 
+    # Since existing logic uses explicit paths for model, let's use explicit path for scaler too.
+    from src.config import SCALER_PATH
+    if os.path.exists(SCALER_PATH):
+        scaler = joblib.load(SCALER_PATH)
+
     explainer = shap.TreeExplainer(model)
-    return model, explainer, threshold
+    return model, explainer, threshold, scaler
 
 
 # ── Page config ───────────────────────────────────────────────
@@ -145,6 +154,13 @@ if predict_btn:
     # ── Apply Feature Engineering ──
     from src.data.preprocess import create_features
     df = create_features(df)
+    
+    # ── Scaling ──
+    if scaler:
+        from src.config import SCALING_FEATURES
+        cols_to_scale = [c for c in SCALING_FEATURES if c in df.columns]
+        if cols_to_scale:
+            df[cols_to_scale] = scaler.transform(df[cols_to_scale])
     
     probability = float(model.predict_proba(df)[:, 1][0])
     prediction = 1 if probability >= optimal_threshold else 0

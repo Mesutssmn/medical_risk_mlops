@@ -58,21 +58,38 @@ def _load_model():
     model_uri = f"models:/{MODEL_NAME}/None"
     logger.info("Loading model from MLflow: %s (threshold=%.4f)", model_uri, threshold)
     model = mlflow.catboost.load_model(model_uri)
-    return model, threshold
+    
+    # ── Load Scaler ──
+    try:
+        import joblib
+        from src.config import SCALER_PATH
+        if os.path.exists(SCALER_PATH):
+             scaler = joblib.load(SCALER_PATH)
+             logger.info("Loaded scaler from %s", SCALER_PATH)
+        else:
+             scaler = None
+             logger.warning("Scaler not found at %s", SCALER_PATH)
+    except Exception as e:
+        scaler = None
+        logger.warning("Could not load scaler: %s", e)
+
+    return model, threshold, scaler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model once on startup."""
-    global _model, _optimal_threshold
+    global _model, _optimal_threshold, _scaler
     try:
-        _model, _optimal_threshold = _load_model()
+        _model, _optimal_threshold, _scaler = _load_model()
         logger.info("Model loaded (threshold=%.4f)", _optimal_threshold)
     except Exception as e:
         logger.error("Could not load model: %s", e)
         _model = None
+        _scaler = None
     yield
     _model = None
+    _scaler = None
 
 
 app = FastAPI(
@@ -120,6 +137,14 @@ def predict(data: StrokeInput):
     # ── Apply Feature Engineering ──
     from src.data.preprocess import create_features
     df = create_features(df)
+
+    # ── Scaling ──
+    if _scaler:
+        from src.config import SCALING_FEATURES
+        # Only scale columns that exist in df (create_features adds them)
+        cols_to_scale = [c for c in SCALING_FEATURES if c in df.columns]
+        if cols_to_scale:
+            df[cols_to_scale] = _scaler.transform(df[cols_to_scale])
 
     probability = float(_model.predict_proba(df)[:, 1][0])
     prediction = 1 if probability >= _optimal_threshold else 0

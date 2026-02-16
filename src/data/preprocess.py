@@ -121,6 +121,22 @@ def preprocess(df: pd.DataFrame) -> tuple:
     )
     logger.info("Train size: %d | Test size: %d", len(X_train), len(X_test))
 
+    # ── Scaling (RobustScaler) ──
+    from sklearn.preprocessing import RobustScaler
+    from src.config import SCALING_FEATURES
+    
+    # Filter features that actually exist in the dataframe
+    scale_cols = [c for c in SCALING_FEATURES if c in X_train.columns]
+    
+    if scale_cols:
+        scaler = RobustScaler()
+        # Fit works on Train only to prevent leakage
+        X_train[scale_cols] = scaler.fit_transform(X_train[scale_cols])
+        X_test[scale_cols] = scaler.transform(X_test[scale_cols])
+        logger.info("Scaled features: %s", scale_cols)
+    else:
+        scaler = None
+
     # ── Categorical feature indices for CatBoost ──
     # Re-scan for object/category columns including new features
     # (Already cast to str in create_features, but check again)
@@ -129,4 +145,4 @@ def preprocess(df: pd.DataFrame) -> tuple:
         if X[c].dtype == "object" or X[c].dtype.name == "category"
     ]
     
-    return X_train, X_test, y_train, y_test, cat_features
+    return X_train, X_test, y_train, y_test, cat_features, scaler

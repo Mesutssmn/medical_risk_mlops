@@ -55,3 +55,14 @@ MODEL_NAME = "catboost_stroke_model"
 MODEL_DIR = "models"
 MODEL_FILE_PATH = os.path.join(MODEL_DIR, "model.cbm")
 MODEL_METADATA_PATH = os.path.join(MODEL_DIR, "metadata.json")
+SCALER_PATH = os.path.join(MODEL_DIR, "scaler.pkl")
+
+# ── Scaling ──────────────────────────────────────────────
+SCALING_FEATURES = [
+    "age",
+    "avg_glucose_level",
+    "bmi",
+    "age_x_bmi",
+    "glucose_x_age",
+    "hypertension_x_heart",
+]

@@ -116,6 +116,11 @@ def predict(data: StrokeInput):
         input_dict["bmi"] = 28.9
 
     df = pd.DataFrame([input_dict])
+    
+    # ── Apply Feature Engineering ──
+    from src.data.preprocess import create_features
+    df = create_features(df)
+
     probability = float(_model.predict_proba(df)[:, 1][0])
     prediction = 1 if probability >= _optimal_threshold else 0
 
@@ -141,6 +146,8 @@ def explain(data: StrokeInput):
         input_dict["bmi"] = 28.9
 
     df = pd.DataFrame([input_dict])
+    from src.data.preprocess import create_features
+    df = create_features(df)
 
     explainer = shap.TreeExplainer(_model)
     shap_values = explainer.shap_values(df)

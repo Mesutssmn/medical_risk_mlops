@@ -141,6 +141,11 @@ if predict_btn:
     }
 
     df = pd.DataFrame([input_data])
+    
+    # ── Apply Feature Engineering ──
+    from src.data.preprocess import create_features
+    df = create_features(df)
+    
     probability = float(model.predict_proba(df)[:, 1][0])
     prediction = 1 if probability >= optimal_threshold else 0
 

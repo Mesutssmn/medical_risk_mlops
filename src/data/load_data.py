@@ -12,7 +12,11 @@ def load_data(path: str | None = None) -> pd.DataFrame:
     path = path or RAW_DATA_PATH
     logger.info("Loading data from %s", path)
     df = pd.read_csv(path)
-    logger.info("Loaded %d rows, %d columns", *df.shape)
+    # ── Drop duplicates to prevent leakage ──
+    original_len = len(df)
+    df = df.drop_duplicates()
+    new_len = len(df)
+    logger.info("Loaded %d rows, %d columns (Dropped %d duplicates)", new_len, df.shape[1], original_len - new_len)
     return df
 
 

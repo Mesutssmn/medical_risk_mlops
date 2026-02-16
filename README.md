@@ -5,85 +5,110 @@
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 
-An end-to-end **MLOps** project for stroke risk prediction. This system demonstrates a complete machine learning lifecycle, from data processing to deployment, monitoring, and explainability.
+An end-to-end **Enterprise MLOps** project for stroke risk prediction. This system demonstrates a complete machine learning lifecycle, from data processing to deployment, monitoring, and explainability.
 
 ---
 
 ## 📋 Table of Contents
 
-- [Project Overview](#-project-overview)
+- [Project Overview & Business Impact](#-project-overview--business-impact)
+- [System Architecture](#-system-architecture)
 - [Key Features](#-key-features)
-- [System Architecture & Code Walkthrough](#-system-architecture--code-walkthrough)
-- [Installation & Usage](#-installation--usage)
+- [Data Leakage Prevention](#-data-leakage-prevention)
 - [Monitoring & Observability](#-monitoring--observability)
+- [CI/CD Pipeline](#-cicd-pipeline)
+- [Installation & Usage](#-installation--usage)
 - [Model Performance](#-model-performance)
-- [Roadmap & Future Improvements](#-roadmap--future-improvements)
+- [Limitations & Risks](#-limitations--risks)
+- [Roadmap](#-roadmap)
 
 ---
 
-## 🎯 Project Overview
+## 🎯 Project Overview & Business Impact
 
-This project aims to predict the likelihood of a patient having a **stroke** based on 11 clinical features (Age, BMI, Glucose, Hypertension, etc.).
+This project provides a real-time risk assessment tool for stroke prediction based on **11 clinical features** (Age, BMI, Glucose, etc.).
 
-**Why MLOps?**
-Unlike a simple Jupyter Notebook, this project is built as a **production-ready system**:
+### 💼 Business Impact
 
-- **Reproducible**: Training with MLflow.
-- **Scalable**: Containerized with Docker.
-- **Interpretable**: Explains _why_ a prediction was made (SHAP).
-- **Monitored**: Tracks system health (Prometheus) and data quality (Evidently).
-- **Safe**: Prevents data leakage and validates inputs.
+- **Early Intervention**: With a **Recall of 74%**, the system identifies the majority of high-risk patients, potentially saving lives through early warning.
+- **Cost Reduction**: Preventing a single stroke event allows for significant healthcare cost savings compared to long-term rehabilitation care.
+- **Efficiency**: Provides doctors with an immediate "second opinion" supported by **SHAP explanations**, reducing diagnostic time.
+
+---
+
+## 🏗 System Architecture
+
+The system follows a microservices-ready architecture:
+
+```mermaid
+graph LR
+    User[User/Doctor] -- Predict --> Streamlit[Streamlit UI]
+    Streamlit -- JSON --> API[FastAPI]
+    API -- Features --> Model[CatBoost Model]
+    Model -- Probability --> API
+    API -- Metrics --> Prometheus[Prometheus]
+
+    subgraph MLOps Automation
+        Code[GitHub] -- Push --> Actions[GitHub Actions]
+        Actions -- Train --> Train[Train.py]
+        Train -- Log --> MLflow[MLflow]
+        Train -- Report --> Evidently[Evidently AI]
+    end
+```
 
 ---
 
 ## ✨ Key Features
 
-- **Model**: **CatBoost Classifier** (Gradient Boosting), optimized for categorical data and imbalanced datasets.
-- **Scaling**: `RobustScaler` handles outliers in numerical features (Age, BMI, Glucose).
-- **Explainability**: **SHAP (SHapley Additive exPlanations)** provides local and global feature importance.
-- **API**: **FastAPI** serves predictions with high performance and auto-generated docs.
-- **Frontend**: **Streamlit** dashboard for easy interaction and visualization.
-- **Monitoring**:
-  - **Prometheus**: Tracks API latency, request count, and errors.
-  - **Evidently AI**: Generates Data Quality & Drift reports during training.
-- **CI/CD**: GitHub Actions for automated testing and linting.
+- **Model**: **CatBoost Classifier**, optimized for categorical data and class imbalance (`scale_pos_weight=20`).
+- **Scaling**: `RobustScaler` for numerical features (Age, BMI, Glucose).
+- **Explainability**: **SHAP** Waterfall plots explain _why_ a specific patient is high risk.
+- **API**: **FastAPI** serves predictions with <50ms latency.
+- **Frontend**: **Streamlit** dashboard with "Low/Moderate/High" risk visualizers.
 
 ---
 
-## 🏗 System Architecture & Code Walkthrough
+## 🛡 Data Leakage Prevention
 
-This section explains "what code does what" to help you understand the flow.
+One of the most critical aspects of Medical ML is preventing **Data Leakage**. This project implements strict safeguards:
 
-### 1. Data Pipeline (`src/data/`)
+1.  **Duplicate Removal**: `load_data.py` automatically detects and removes duplicate rows **before** splitting, ensuring the same patient doesn't appear in both Train and Test sets.
+2.  **Split-then-Scale**: Scaling (`RobustScaler`) is `fit` **only on the Training set** and then applied to the Test set. No statistics (mean/median) from the Test set leak into the model.
+3.  **Row-Wise Feature Engineering**: All features (e.g., `Age Group`, `BMI Category`) are calculated per-patient, avoiding aggregate leakage.
 
-- **`load_data.py`**: Loads raw CSV. **Crucial**: Automatically removes duplicate rows to prevent Data Leakage.
-- **`preprocess.py`**:
-  - Fills missing BMI values with median.
-  - **Feature Engineering**: Creates Age Groups, BMI Categories, and Interaction Terms (e.g., `Age * BMI`).
-  - **Scaling**: Applies `RobustScaler` to numerical features (fits on Train, transforms Test).
-  - Splits data into Train/Test sets (Stratified).
+---
 
-### 2. Model Pipeline (`src/models/`)
+## 📡 Monitoring & Observability
 
-- **`train.py`**: The heart of the training process.
-  - Logs params, metrics, and artifacts to **MLflow**.
-  - Generates **Evidently** Data Quality Reports.
-  - Saves the model (`model.cbm`) and scaler (`scaler.pkl`) for deployment.
-- **`evaluate.py`**: Because stroke is rare (imbalanced data), standard accuracy is misleading. This script finds the **Optimal Threshold** that maximizes the **F2-Score** (prioritizing Recall/Sensitivity to catch more cases).
+### 1. System Metrics (Prometheus)
 
-### 3. API & Serving (`src/api/`)
+Exposes `/metrics` for real-time operational monitoring:
 
-- **`main.py`**: The FastAPI application.
-  - Loads `model.cbm`, `scaler.pkl`, and `metadata.json` (threshold).
-  - **`/predict`**: Returns class (0/1) and probability.
-  - **`/metrics`**: Exposes Prometheus metrics.
-- **`schema.py`**: Pydantic models ensuring input data validity (e.g., age must be positive).
+- `http_requests_total`: Traffic volume.
+- `http_request_duration_seconds`: API Latency.
+- `http_requests_errors_total`: Error rates (5xx codes).
 
-### 4. User Interface (`streamlit_app.py`)
+### 2. Data Drift (Evidently AI)
 
-- Provides a clean web UI for doctors/users.
-- Visualizes **Risk Levels** (Low/Moderate/High).
-- Displays **SHAP Waterfall Plots** to explain individual predictions.
+During training, the system compares the **New Training Data** vs **Reference Data**:
+
+- **Metric**: Population Stability Index (PSI) and Wasserstein Distance.
+- **Alert Condition**: If `Drift Score > 0.1` (p-value < 0.05) for critical features like `Age` or `Glucose`, a warning is logged in MLflow.
+- **Artifact**: `data_quality_report.html` is generated for visual inspection.
+
+---
+
+## 🔄 CI/CD Pipeline
+
+Automated with **GitHub Actions** (`mlops.yml`):
+
+1.  **Environment Setup**: Installs Python 3.12 & dependencies.
+2.  **Linting**: Checks code quality (flake8/black).
+3.  **Unit Tests**:
+    - `test_data.py`: Validates schema, checks for nulls.
+    - `test_model.py`: Smoke test for the API (ensures `/predict` returns 200 OK).
+4.  **Training Trigger**: (Optional) Can be configured to retrain model on new data push.
+5.  **Artifact Management**: Saves trained models if tests pass.
 
 ---
 
@@ -117,61 +142,31 @@ docker-compose up -d
 
 ---
 
-## 📡 Monitoring & Observability
-
-### 1. System Metrics (Prometheus)
-
-The API exposes a `/metrics` endpoint compatible with Prometheus. It tracks:
-
-- `http_requests_total`: Total number of predictions.
-- `http_request_duration_seconds`: Latency distributions.
-
-### 2. Data Quality (Evidently)
-
-Every time `train.py` runs, an HTML report (`data_quality_report.html`) is generated and logged to MLflow. This helps detect:
-
-- **Data Drift**: Is the new data significantly different from the old data?
-- **Missing Values**: Are we seeing unexpected nulls?
-
----
-
 ## 📊 Model Performance
 
-| Metric        | Value      | Description                                                |
-| ------------- | ---------- | ---------------------------------------------------------- |
-| **ROC-AUC**   | **0.8485** | Strong ability to distinguish stroke vs no-stroke.         |
-| **Recall**    | **0.7400** | Catches 74% of actual stroke cases (critically important). |
-| **Threshold** | **0.6904** | Optimized decision boundary.                               |
+| Metric        | Value      | Description                                             |
+| ------------- | ---------- | ------------------------------------------------------- |
+| **ROC-AUC**   | **0.8485** | Strong discriminative ability.                          |
+| **Recall**    | **0.7400** | Catches 74% of actual stroke cases (Priority Metric).   |
+| **Precision** | **0.22**   | Accepting more False Positives to ensure higher Recall. |
+| **Threshold** | **0.6904** | Optimized decision boundary.                            |
 
 ---
 
-## 🔮 Roadmap & Future Improvements
+## ⚠️ Limitations & Risks
 
-To take this system to the "Enterprise Level", here is the recommended roadmap:
+- **Dataset**: Based on the Kaggle Stroke Prediction dataset (Synthetic/Imbalanced). Distribution may not match real-world hospital data.
+- **Clinical Validation**: This model is **NOT** clinically validated. It should be used as a decision support tool, not a replacement for medical diagnosis.
+- **Bias**: The dataset has a strong correlation between "Age" and "Stroke", which may lead to underestimating risk in young patients with other comorbidities.
 
-### 1. Advanced Monitoring Stack
+---
 
-- **Grafana Dashboard**: Visualize the Prometheus metrics (Latency, RPS) in real-time dashboards.
-- **Alerting**: Set up **Alertmanager** to send Slack/Email notifications if Model Drift is detected or API errors spike.
+## 🔮 Roadmap
 
-### 2. Automated Retraining (Continuous Training)
-
-- **Orchestration**: Use **Airflow** or **Prefect** to schedule `train.py` to run weekly automatically using new data.
-- **Trigger**: Trigger retraining automatically if Evidently detects significant Data Drift.
-
-### 3. Database Integration
-
-- Currently, the API accepts data but doesn't save requests.
-- **Improvement**: Save all incoming prediction requests and model results to a **PostgreSQL** database. This builds a "Ground Truth" dataset for future retraining.
-
-### 4. Canary Deployment
-
-- Use **Kubernetes (K8s)** or Docker Swarm to run two versions of the model simultaneously (v1 and v2) and gradually shift traffic to the new model (A/B Testing).
-
-### 5. Security
-
-- Add **API Key Authentication** to FastAPI endpoints.
-- Implement Rate Limiting to prevent abuse.
+1.  **Database Integration**: Store request/response logs in PostgreSQL for Ground Truth analysis.
+2.  **Advanced Alerting**: Connect Prometheus Alertmanager to Slack for drift notifications.
+3.  **A/B Testing**: Implement Canary Deployment for model updates.
+4.  **Security**: Add API Key authentication and Rate Limiting.
 
 ---
 

@@ -2,6 +2,8 @@
 
 An end-to-end **stroke risk prediction** system built with CatBoost + MLflow + FastAPI + Streamlit.
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://medicalriskmlops-gazdhmhjpne5angult4why.streamlit.app/)
+
 ---
 
 ## 📋 Table of Contents

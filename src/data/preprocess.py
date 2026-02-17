@@ -21,60 +21,44 @@ def create_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
 
-    # ── Handle missing BMI with median (hardcoded to avoid training dependency issues in inference) ──
-    # In production, this should ideally be loaded from a saved artifact/metadata.
-    # For now, we use a sensible default or the same logic if we can't easily load training stats.
-    # Training median was ~28.1. Let's use 28.1 if nan. 
-    # Or just keep logic simple: if column exists.
-    if "bmi" in df.columns:
-         if df["bmi"].isnull().sum() > 0:
-            df["bmi"] = df["bmi"].fillna(28.1) # Hardcoded median from training set to ensure consistency
+    # ── Handle missing BMI ──
+    # Training median is hard to know without data, but let's stick to a safe default if needed.
+    if "BMI" in df.columns:
+         if df["BMI"].isnull().sum() > 0:
+            df["BMI"] = df["BMI"].fillna(28.1) 
 
     # ── Feature Engineering ──
     # 1. Age Binning
-    if "age" in df.columns:
-        df["age_group"] = pd.cut(
-            df["age"],
+    if "Age" in df.columns:
+        df["Age_Group"] = pd.cut(
+            df["Age"],
             bins=[0, 12, 19, 59, 120],
             labels=["Child", "Teen", "Adult", "Senior"]
         ).astype("object")
 
     # 2. BMI Binning
-    if "bmi" in df.columns:
-        df["bmi_category"] = pd.cut(
-            df["bmi"],
+    if "BMI" in df.columns:
+        df["BMI_Category"] = pd.cut(
+            df["BMI"],
             bins=[0, 18.5, 24.9, 29.9, 100],
             labels=["Underweight", "Normal", "Overweight", "Obese"]
         ).astype("object")
 
     # 3. Glucose Binning
-    if "avg_glucose_level" in df.columns:
-        df["glucose_category"] = pd.cut(
-            df["avg_glucose_level"],
+    if "Avg_Glucose" in df.columns:
+        df["Glucose_Category"] = pd.cut(
+            df["Avg_Glucose"],
             bins=[0, 99, 139, 300],
             labels=["Normal", "Prediabetic", "Diabetic"]
         ).astype("object")
 
-    # 4. Interaction Terms
-    if "age" in df.columns and "bmi" in df.columns:
-        df["age_x_bmi"] = df["age"] * df["bmi"]
-    
-    if "avg_glucose_level" in df.columns and "age" in df.columns:
-        df["glucose_x_age"] = df["avg_glucose_level"] * df["age"]
-    
-    if "hypertension" in df.columns and "heart_disease" in df.columns:
-        df["hypertension_x_heart"] = df["hypertension"] * df["heart_disease"]
-
     # ── Categorical Casting ──
     # Ensure all object columns are strings (CatBoost requirement)
-    # We must do this for ALL potential categorical columns, 
-    # including the new ones and original ones.
-    # But during inference, we might only have "Male" etc.
-    # We define the known categorical columns to be safe.
+    # Define known categorical columns matching new schema + created features
     
     known_cat_cols = [
-        "gender", "ever_married", "work_type", "Residence_type", 
-        "smoking_status", "age_group", "bmi_category", "glucose_category"
+        "Gender", "SES", "Smoking_Status", 
+        "Age_Group", "BMI_Category", "Glucose_Category"
     ]
     
     for c in known_cat_cols:

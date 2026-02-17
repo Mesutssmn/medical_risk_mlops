@@ -13,6 +13,7 @@ from src.config import (
 
 
 # ── Load model (cached) ──────────────────────────────────────
+
 @st.cache_resource
 def load_model():
     # ── Try standalone .cbm file (Docker / Streamlit Cloud) ──
@@ -162,12 +163,19 @@ if predict_btn:
         if cols_to_scale:
             df[cols_to_scale] = scaler.transform(df[cols_to_scale])
     
-    # ── Scaling ──
-    if scaler:
-        from src.config import SCALING_FEATURES
-        cols_to_scale = [c for c in SCALING_FEATURES if c in df.columns]
-        if cols_to_scale:
-            df[cols_to_scale] = scaler.transform(df[cols_to_scale])
+    # ── Ensure Feature Alignment ──
+    # Check if model has feature_names_ attribute (CatBoost usually does)
+    if hasattr(model, "feature_names_"):
+        model_features = model.feature_names_
+        # Identify missing columns
+        missing_cols = set(model_features) - set(df.columns)
+        if missing_cols:
+            # Add missing columns with 0 or appropriate default
+            for c in missing_cols:
+                df[c] = 0
+        
+        # Reorder columns to match model
+        df = df[model_features]
     
     probability = float(model.predict_proba(df)[:, 1][0])
     prediction = 1 if probability >= optimal_threshold else 0

@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.github/
+catboost_info/
+artifacts/
+*.ipynb
+.env
+.gitignore
+README.md
+mlflow.db
+mlruns/

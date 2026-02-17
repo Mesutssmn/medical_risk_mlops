@@ -1,0 +1,39 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# MLflow local data
+mlruns/
+mlflow.db
+
+# CatBoost training cache
+catboost_info/
+
+# Environment
+.env
+
+# Artifacts (generated during training)
+artifacts/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and Temporary files
+*.log
+*.txt
+error_trace.txt
+test_model_output.txt
+output.txt
+debug.log
+
+# Testing
+.pytest_cache/

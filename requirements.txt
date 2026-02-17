@@ -1,0 +1,36 @@
+# Core
+pandas
+numpy
+scikit-learn
+
+# Model
+catboost
+
+# Experiment Tracking
+mlflow
+
+# Optimization
+optuna
+
+# API
+fastapi
+uvicorn[standard]
+pydantic
+prometheus-fastapi-instrumentator
+
+# Explainability
+shap
+matplotlib
+
+# Monitoring
+evidently
+
+# UI
+streamlit
+
+# Environment
+python-dotenv
+
+# Testing
+pytest
+httpx

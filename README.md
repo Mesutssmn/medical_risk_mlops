@@ -26,13 +26,13 @@ An end-to-end **Enterprise MLOps** project for stroke risk prediction. This syst
 
 ## 🎯 Project Overview & Business Impact
 
-This project provides a real-time risk assessment tool for stroke prediction based on **11 clinical features** (Age, BMI, Glucose, etc.).
+This project provides a real-time risk assessment tool for stroke prediction based on **9 clinical features** (Age, BMI, Glucose, SES, etc.).
 
 ### 💼 Business Impact
 
-- **Early Intervention**: With a **Recall of 74%**, the system identifies the majority of high-risk patients, potentially saving lives through early warning.
-- **Cost Reduction**: Preventing a single stroke event allows for significant healthcare cost savings compared to long-term rehabilitation care.
-- **Efficiency**: Provides doctors with an immediate "second opinion" supported by **SHAP explanations**, reducing diagnostic time.
+- **Early Intervention**: The system identifies high-risk patients, potentially saving lives through warning signs.
+- **Cost Reduction**: Preventing a single stroke event allows for significant healthcare cost savings.
+- **Efficiency**: Provides doctors with an immediate "second opinion" supported by **SHAP explanations**.
 
 ---
 
@@ -50,7 +50,7 @@ graph LR
 
     subgraph MLOps Automation
         Code[GitHub] -- Push --> Actions[GitHub Actions]
-        Actions -- Train --> Train[Train.py]
+        Actions -- Train --> Train[src/models/train.py]
         Train -- Log --> MLflow[MLflow]
         Train -- Report --> Evidently[Evidently AI]
     end
@@ -60,11 +60,12 @@ graph LR
 
 ## ✨ Key Features
 
-- **Model**: **CatBoost Classifier**, optimized for categorical data and class imbalance (`scale_pos_weight=20`).
+- **Model**: **CatBoost Classifier**, optimized for categorical data and class imbalance (`scale_pos_weight` tuned dynamically).
+- **Features**: 9 core inputs including **Age, Gender, SES (Socioeconomic Status), Hypertension, Heart Disease, Avg Glucose, BMI, Diabetes, Smoking Status**.
 - **Scaling**: `RobustScaler` for numerical features (Age, BMI, Glucose).
 - **Explainability**: **SHAP** Waterfall plots explain _why_ a specific patient is high risk.
 - **API**: **FastAPI** serves predictions with <50ms latency.
-- **Frontend**: **Streamlit** dashboard with "Low/Moderate/High" risk visualizers.
+- **Frontend**: **Streamlit** dashboard with "Low/Moderate/High" risk visualizers and BMI/Glucose categorization.
 
 ---
 
@@ -72,9 +73,9 @@ graph LR
 
 One of the most critical aspects of Medical ML is preventing **Data Leakage**. This project implements strict safeguards:
 
-1.  **Duplicate Removal**: `load_data.py` automatically detects and removes duplicate rows **before** splitting, ensuring the same patient doesn't appear in both Train and Test sets.
-2.  **Split-then-Scale**: Scaling (`RobustScaler`) is `fit` **only on the Training set** and then applied to the Test set. No statistics (mean/median) from the Test set leak into the model.
-3.  **Row-Wise Feature Engineering**: All features (e.g., `Age Group`, `BMI Category`) are calculated per-patient, avoiding aggregate leakage.
+1.  **Duplicate Removal**: `load_data.py` automatically detects and removes duplicate rows **before** splitting.
+2.  **Split-then-Scale**: Scaling (`RobustScaler`) is `fit` **only on the Training set** and then applied to the Test set.
+3.  **Row-Wise Feature Engineering**: Features like `Age Group` and `BMI Category` are calculated per-patient, avoiding aggregate leakage.
 
 ---
 
@@ -105,7 +106,7 @@ Automated with **GitHub Actions** (`mlops.yml`):
 1.  **Environment Setup**: Installs Python 3.12 & dependencies.
 2.  **Linting**: Checks code quality (flake8/black).
 3.  **Unit Tests**:
-    - `test_data.py`: Validates schema, checks for nulls.
+    - `test_data.py`: Validates schema (Age, SES, etc.), checks for nulls.
     - `test_model.py`: Smoke test for the API (ensures `/predict` returns 200 OK).
 4.  **Training Trigger**: (Optional) Can be configured to retrain model on new data push.
 5.  **Artifact Management**: Saves trained models if tests pass.
@@ -126,7 +127,10 @@ python -m venv .venv
 # 2. Install Dependencies
 pip install -r requirements.txt
 
-# 3. Running the App
+# 3. Train Model (Required for first run)
+python src/models/train.py
+
+# 4. Running the App
 streamlit run streamlit_app.py
 ```
 
@@ -146,18 +150,20 @@ docker-compose up -d
 
 | Metric        | Value      | Description                                             |
 | ------------- | ---------- | ------------------------------------------------------- |
-| **ROC-AUC**   | **0.8485** | Strong discriminative ability.                          |
-| **Recall**    | **0.7400** | Catches 74% of actual stroke cases (Priority Metric).   |
-| **Precision** | **0.22**   | Accepting more False Positives to ensure higher Recall. |
-| **Threshold** | **0.6904** | Optimized decision boundary.                            |
+| **ROC-AUC**   | **~0.85**  | Strong discriminative ability.                          |
+| **Recall**    | **~0.74**  | Catches high-risk patients (Priority Metric).           |
+| **Precision** | **~0.22**  | Accepting more False Positives to ensure higher Recall. |
+| **Threshold** | **Optimized** | Tuned via F1-score maximization.                     |
+
+*Note: Performance metrics may vary based on the specific dataset version and retraining.*
 
 ---
 
 ## ⚠️ Limitations & Risks
 
-- **Dataset**: Based on the Kaggle Stroke Prediction dataset (Synthetic/Imbalanced). Distribution may not match real-world hospital data.
+- **Dataset**: Based on a synthetic or curated Stroke Prediction dataset. Distribution may not match real-world hospital data.
 - **Clinical Validation**: This model is **NOT** clinically validated. It should be used as a decision support tool, not a replacement for medical diagnosis.
-- **Bias**: The dataset has a strong correlation between "Age" and "Stroke", which may lead to underestimating risk in young patients with other comorbidities.
+- **Bias**: The dataset has a strong correlation between "Age" and "Stroke", which may lead to underestimating risk in young patients.
 
 ---
 

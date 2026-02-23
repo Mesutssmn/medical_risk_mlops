@@ -4,7 +4,11 @@ from src.config import TARGET_COLUMN
 
 def test_data_schema(sample_data):
     """Check if required columns exist."""
-    required_cols = ["age", "hypertension", "heart_disease", "avg_glucose_level", "bmi", TARGET_COLUMN]
+    # Updated to match new schema and src/config.py
+    required_cols = [
+        "Age", "Gender", "SES", "Hypertension", "Heart_Disease", 
+        "Avg_Glucose", "BMI", "Diabetes", "Smoking_Status", TARGET_COLUMN
+    ]
     for col in required_cols:
         assert col in sample_data.columns, f"Missing column: {col}"
 
@@ -19,8 +23,11 @@ def test_target_values(sample_data):
 
 def test_numeric_ranges(sample_data):
     """Check if numeric features are within reasonable ranges."""
-    assert (sample_data["age"] >= 0).all() and (sample_data["age"] <= 120).all()
-    assert (sample_data["avg_glucose_level"] > 0).all()
-    # BMI might have NaNs before preprocessing, but let's check non-nulls
-    valid_bmi = sample_data["bmi"].dropna()
-    assert (valid_bmi > 0).all()
+    # Use new column names
+    assert (sample_data["Age"] >= 0).all() and (sample_data["Age"] <= 120).all()
+    assert (sample_data["Avg_Glucose"] > 0).all()
+    
+    # Check BMI if present (it's optional in some contexts but usually present in raw data)
+    if "BMI" in sample_data.columns:
+        valid_bmi = sample_data["BMI"].dropna()
+        assert (valid_bmi > 0).all()

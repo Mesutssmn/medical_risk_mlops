@@ -3,6 +3,12 @@
 import json
 import logging
 import os
+import sys
+
+# Ensure project root is in PYTHONPATH
+# This allows running 'python src/models/train.py' from project root
+sys.path.append(os.getcwd())
+
 import mlflow
 import mlflow.catboost
 import matplotlib

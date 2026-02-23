@@ -6,7 +6,8 @@ RAW_DATA_PATH = "data/raw/stroke_data.csv"
 PROCESSED_DATA_PATH = "data/processed"
 
 # ── Target ─────────────────────────────────────────────
-TARGET_COLUMN = "stroke"
+# ── Target ─────────────────────────────────────────────
+TARGET_COLUMN = "Stroke"
 
 # ── Split ──────────────────────────────────────────────
 TEST_SIZE = 0.2
@@ -14,35 +15,33 @@ RANDOM_STATE = 42
 
 # ── Features ───────────────────────────────────────────
 CATEGORICAL_FEATURES = [
-    "gender",
-    "ever_married",
-    "work_type",
-    "Residence_type",
-    "smoking_status",
+    "Gender",
+    "SES",
+    "Smoking_Status",
 ]
 
 NUMERIC_FEATURES = [
-    "age",
-    "hypertension",
-    "heart_disease",
-    "avg_glucose_level",
-    "bmi",
+    "Age",
+    "Hypertension",
+    "Heart_Disease",
+    "Avg_Glucose",
+    "BMI",
+    "Diabetes",
 ]
 
-DROP_COLUMNS = ["id"]
+DROP_COLUMNS = ["id"] # Just in case
 
 # ── CatBoost Hyperparameters (Improved) ────────────────
 CATBOOST_PARAMS = {
     "iterations": 1000,
-    "depth": 8,
+    "depth": 6,
     "learning_rate": 0.03,
     "loss_function": "Logloss",
     "eval_metric": "AUC",
     "random_seed": RANDOM_STATE,
-    "class_weights": [1, 20],
     "verbose": 100,
     "early_stopping_rounds": 100,
-    "l2_leaf_reg": 5,
+    "l2_leaf_reg": 9,
     "border_count": 128,
 }
 
@@ -59,10 +58,7 @@ SCALER_PATH = os.path.join(MODEL_DIR, "scaler.pkl")
 
 # ── Scaling ──────────────────────────────────────────────
 SCALING_FEATURES = [
-    "age",
-    "avg_glucose_level",
-    "bmi",
-    "age_x_bmi",
-    "glucose_x_age",
-    "hypertension_x_heart",
+    "Age",
+    "Avg_Glucose",
+    "BMI",
 ]

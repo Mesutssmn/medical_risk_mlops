@@ -7,6 +7,8 @@
 
 An end-to-end **Enterprise MLOps** project for stroke risk prediction. This system demonstrates a complete machine learning lifecycle, from data processing to deployment, monitoring, and explainability.
 
+You can check out the live system on Streamlit: [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://medicalriskmlops-gazdhmhjpne5angult4why.streamlit.app/)
+
 ---
 
 ## 📋 Table of Contents
